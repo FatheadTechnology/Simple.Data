@@ -100,7 +100,7 @@ namespace Simple.Data
 
         private static BinaryExpression CreateNew(Type targetType, ParameterExpression obj)
         {
-            var ctor = targetType.GetConstructor(Type.EmptyTypes);
+            var ctor = targetType.GetConstructor(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance, null, Type.EmptyTypes, null);
             Debug.Assert(ctor != null);
             var create = Expression.Assign(obj, Expression.New(ctor)); // obj = new T();
             return create;
