@@ -35,7 +35,7 @@ namespace Simple.Data
             return func(source);
         }
 
-        public bool TryCreate(IDictionary<string,object> source, out object result)
+        public bool TryCreate(IDictionary<string, object> source, out object result)
         {
             try
             {
@@ -74,17 +74,17 @@ namespace Simple.Data
 
         private static Func<IDictionary<string, object>, object> BuildLambda(Type targetType)
         {
-            var param = Expression.Parameter(typeof (IDictionary<string, object>), "source");
+            var param = Expression.Parameter(typeof(IDictionary<string, object>), "source");
             var obj = Expression.Variable(targetType, "obj");
 
             var create = CreateNew(targetType, obj);
 
             var assignments = Expression.Block(
-                targetType.GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                targetType.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                     .Where(PropertyIsConvertible)
                     .Select(p => new PropertySetterBuilder(param, obj, p).CreatePropertySetter()));
 
-            var block = Expression.Block(new[] {obj},
+            var block = Expression.Block(new[] { obj },
                                          create,
                                          assignments,
                                          obj);
@@ -100,7 +100,7 @@ namespace Simple.Data
 
         private static BinaryExpression CreateNew(Type targetType, ParameterExpression obj)
         {
-            var ctor = targetType.GetConstructor(BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance, null, Type.EmptyTypes, null);
+            var ctor = targetType.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
             Debug.Assert(ctor != null);
             var create = Expression.Assign(obj, Expression.New(ctor)); // obj = new T();
             return create;
