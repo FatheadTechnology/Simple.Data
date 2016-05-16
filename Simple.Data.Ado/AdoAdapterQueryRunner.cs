@@ -117,7 +117,8 @@
                 {
                     throw new InvalidOperationException();
                 }
-                return enumerator.Current;
+
+                return query.Clauses.OfType<WithClause>().Any() ? new EagerLoadingEnumerable(enumerator.Current) : enumerator.Current;
             }
         }
 
