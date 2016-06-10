@@ -16,7 +16,7 @@ namespace Simple.Data.Ado
 
     public class ProviderHelper
     {
-        private readonly ConcurrentDictionary<ConnectionToken, IConnectionProvider> _connectionProviderCache = new ConcurrentDictionary<ConnectionToken,IConnectionProvider>();
+        private readonly ConcurrentDictionary<ConnectionToken, IConnectionProvider> _connectionProviderCache = new ConcurrentDictionary<ConnectionToken, IConnectionProvider>();
         private readonly ConcurrentDictionary<Type, object> _customProviderCache = new ConcurrentDictionary<Type, object>();
 
         public IConnectionProvider GetProviderByConnectionString(string connectionString)
@@ -38,12 +38,12 @@ namespace Simple.Data.Ado
             {
                 return GetProviderByFilename(dataSource);
             }
-            
+
             var provider = ComposeProvider();
             provider.SetConnectionString(token.ConnectionString);
             return provider;
         }
-            
+
         internal static string GetDataSourceName(string connectionString)
         {
             var match = Regex.Match(connectionString, @"data source=(.*?)(;|\z)");
@@ -103,31 +103,28 @@ namespace Simple.Data.Ado
         {
             IConnectionProvider provider;
 
-            if (TryLoadAssemblyUsingAttribute(token.ConnectionString, token.ProviderName, out provider))
+            var success = TryLoadAssemblyUsingAttribute(token.ConnectionString, token.ProviderName, out provider);
+            if (!success)
             {
-                return provider;
+                provider = ComposeProvider(token.ProviderName);
+
+                if (provider == null)
+                {
+                    throw new InvalidOperationException(string.Format("Provider '{0}' could not be resolved.", token.ProviderName));
+                }
+
+                provider.SetConnectionString(token.ConnectionString);
             }
 
-            provider = ComposeProvider(token.ProviderName);
-            if (provider == null)
-            {
-                throw new InvalidOperationException(string.Format("Provider '{0}' could not be resolved.", token.ProviderName));
-            }
-
-            provider.SetConnectionString(token.ConnectionString);
-
-            var schemaConnectionProvider = provider as ISchemaConnectionProvider;
-            if(schemaConnectionProvider != null)
-                schemaConnectionProvider.SetSchema(token.SchemaName);
+            (provider as ISchemaConnectionProvider)?.SetSchema(token.SchemaName);
 
             return provider;
-            
         }
 
         public T GetCustomProvider<T>(IConnectionProvider connectionProvider)
         {
-            return (T)_customProviderCache.GetOrAdd(typeof (T), t => GetCustomProviderExport<T>(connectionProvider.GetType().Assembly) ??
-                                                                     GetCustomProviderServiceProvider(connectionProvider as IServiceProvider, t));
+            return (T)_customProviderCache.GetOrAdd(typeof(T), t => GetCustomProviderExport<T>(connectionProvider.GetType().Assembly) ??
+                                                                    GetCustomProviderServiceProvider(connectionProvider as IServiceProvider, t));
         }
 
         private static Object GetCustomProviderExport<T>(Assembly assembly)
@@ -262,8 +259,8 @@ namespace Simple.Data.Ado
             {
                 if (ReferenceEquals(null, obj)) return false;
                 if (ReferenceEquals(this, obj)) return true;
-                if (obj.GetType() != typeof (ConnectionToken)) return false;
-                return Equals((ConnectionToken) obj);
+                if (obj.GetType() != typeof(ConnectionToken)) return false;
+                return Equals((ConnectionToken)obj);
             }
 
             /// <summary>
@@ -277,7 +274,7 @@ namespace Simple.Data.Ado
             {
                 unchecked
                 {
-                    return (ConnectionString.GetHashCode()*397) ^ (ProviderName.GetHashCode() * 397) ^ SchemaName.GetHashCode();
+                    return (ConnectionString.GetHashCode() * 397) ^ (ProviderName.GetHashCode() * 397) ^ SchemaName.GetHashCode();
                 }
             }
 

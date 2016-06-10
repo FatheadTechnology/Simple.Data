@@ -17,13 +17,14 @@ namespace Simple.Data.Ado.Schema
         private readonly Lazy<Operators> _operators;
         private string _defaultSchema;
 
-        private DatabaseSchema(ISchemaProvider schemaProvider, ProviderHelper providerHelper)
+        private DatabaseSchema(ISchemaProvider schemaProvider, ProviderHelper providerHelper, string defaultSchema = null)
         {
             _lazyTables = new Lazy<TableCollection>(CreateTableCollection);
             _lazyProcedures = new Lazy<ProcedureCollection>(CreateProcedureCollection);
             _operators = new Lazy<Operators>(CreateOperators);
             _schemaProvider = schemaProvider;
             _providerHelper = providerHelper;
+            _defaultSchema = defaultSchema;
         }
 
         public ProviderHelper ProviderHelper
@@ -125,8 +126,9 @@ namespace Simple.Data.Ado.Schema
 
         public static DatabaseSchema Get(IConnectionProvider connectionProvider, ProviderHelper providerHelper)
         {
-            var instance = connectionProvider is ISchemaConnectionProvider 
-                ? Instances.GetOrAdd(((ISchemaConnectionProvider)connectionProvider).ConnectionProviderKey, sp => new DatabaseSchema(connectionProvider.GetSchemaProvider(), providerHelper))
+            var provider = connectionProvider as ISchemaConnectionProvider;
+            var instance = provider != null
+                ? Instances.GetOrAdd(provider.ConnectionProviderKey, sp => new DatabaseSchema(provider.GetSchemaProvider(), providerHelper, provider.Schema))
                 : Instances.GetOrAdd(connectionProvider.ConnectionString, sp => new DatabaseSchema(connectionProvider.GetSchemaProvider(), providerHelper));
 
             return instance;

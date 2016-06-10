@@ -11,7 +11,7 @@ namespace Simple.Data.SqlServer
 {
     [Export(typeof(IConnectionProvider))]
     [Export("System.Data.SqlClient", typeof(IConnectionProvider))]
-    public class SqlConnectionProvider : IConnectionProvider
+    public class SqlConnectionProvider : IConnectionProvider, ISchemaConnectionProvider
     {
         private string _connectionString;
 
@@ -79,5 +79,14 @@ namespace Simple.Data.SqlServer
         {
             return new ProcedureExecutor(adapter, procedureName);
         }
+
+        public void SetSchema(string schema)
+        {
+            Schema = schema;
+        }
+
+        public string Schema { get; set; }
+
+        public string ConnectionProviderKey => nameof(SqlConnectionProvider);
     }
 }

@@ -18,7 +18,6 @@ namespace Simple.Data.Ado
 
         public override ICommandBuilder Build(SimpleQuery query, out IEnumerable<SimpleQueryClauseBase> unhandledClauses)
         {
-
             var customBuilder = _adoAdapter.ProviderHelper.GetCustomProvider<ICustomQueryBuilder>(_adoAdapter.ConnectionProvider);
             if (customBuilder != null)
             {
