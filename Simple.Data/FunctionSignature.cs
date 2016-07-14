@@ -44,6 +44,7 @@ namespace Simple.Data
             }
             builder.Append(")");
             return builder.ToString();
+
         }
 
         private static IList<Parameter> GetParameters(InvokeMemberBinder binder, object[] args)

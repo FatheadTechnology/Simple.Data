@@ -28,7 +28,7 @@ namespace Simple.Data
         {
             return Create(adapterName, settings.AnonymousObjectToDictionary());
         }
-
+        
         public Adapter Create(IEnumerable<KeyValuePair<string,object>> settings)
         {
             if (settings.Any( kvp => kvp.Key.Equals("ConnectionString",StringComparison.OrdinalIgnoreCase)))

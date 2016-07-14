@@ -86,11 +86,12 @@ namespace Simple.Data
             var creatorInstance = ConcreteTypeCreator.Get(genericType);
             var collection = Expression.Variable(_property.PropertyType);
 
-            var createCollection = MakeCreateNewCollection(collection, genericType);
+            Type collectionType;
+            var createCollection = MakeCreateNewCollection(collection, genericType, out collectionType);
 
             if (createCollection == null) return null;
 
-            var addMethod = _property.PropertyType.GetMethod("Add");
+            var addMethod = collectionType.GetMethod("Add");
 
             if (addMethod == null) return null;
 
@@ -103,16 +104,19 @@ namespace Simple.Data
             var creatorInstance = ConcreteTypeCreator.Get(genericType);
             var collection = Expression.Variable(_property.PropertyType);
             BinaryExpression createCollection = null;
+
+            var addMethod = _property.PropertyType.GetInterfaceMethod("Add");
+
             if (_property.CanWrite)
             {
-                createCollection = MakeCreateNewCollection(collection, genericType);
+                Type collectionType;
+                createCollection = MakeCreateNewCollection(collection, genericType, out collectionType); //If the property is writable, initialize it 
+                addMethod = collectionType.GetInterfaceMethod("Add");
             }
             else
             {
-                createCollection = Expression.Assign(collection, _nameProperty);
+                createCollection = Expression.Assign(collection, _nameProperty); //If we can't assign the property, assign our temp collection to be the property itself (and if there's an 'add' method on the property, we'll use that)
             }
-
-            var addMethod = _property.PropertyType.GetInterfaceMethod("Add");
 
             if (createCollection != null && addMethod != null)
             {
@@ -225,12 +229,13 @@ namespace Simple.Data
             return isObjectCollection;
         }
 
-        private BinaryExpression MakeCreateNewCollection(ParameterExpression collection, Type genericType)
+        private BinaryExpression MakeCreateNewCollection(ParameterExpression collection, Type genericType, out Type collectionType)
         {
             BinaryExpression createCollection;
 
             if (_property.PropertyType.IsInterface)
             {
+                collectionType = typeof(List<>).MakeGenericType(_property.PropertyType.GetGenericArguments());
                 createCollection = Expression.Assign(collection,
                                                      Expression.Call(
                                                          typeof (PropertySetterBuilder).GetMethod("CreateList",
@@ -242,6 +247,7 @@ namespace Simple.Data
             }
             else
             {
+                collectionType = _property.PropertyType;
                 var defaultConstructor = _property.PropertyType.GetConstructor(Type.EmptyTypes);
                 if (defaultConstructor != null)
                 {

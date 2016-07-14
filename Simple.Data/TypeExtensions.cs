@@ -10,11 +10,11 @@ namespace Simple.Data
         public static bool IsGenericCollection(this Type type)
         {
             return type.IsGenericType &&
-                (type.GetGenericTypeDefinition() == typeof(ICollection<>) ||
+                (type.GetGenericTypeDefinition() == typeof(IEnumerable<>) ||
                    type.GetGenericTypeDefinition().GetInterfaces()
                        .Where(i => i.IsGenericType)
                        .Select(i => i.GetGenericTypeDefinition())
-                       .Contains(typeof(ICollection<>)));
+                       .Contains(typeof(IEnumerable<>)));
         }
 
         public static MethodInfo GetInterfaceMethod(this Type type, string name)
