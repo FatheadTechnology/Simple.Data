@@ -22,7 +22,7 @@ namespace Simple.Data.IntegrationTest
         public void Unknown_table_raises_exception()
         {
             var x = Assert.Throws<UnresolvableObjectException>(() => _db.People.All().ToList<dynamic>());
-            Assert.AreEqual("dbo.People", x.ObjectName);
+            Assert.AreEqual("People", x.ObjectName);
         }
 
         [Test]
