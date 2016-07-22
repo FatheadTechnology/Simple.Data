@@ -61,11 +61,11 @@ namespace Simple.Data.Ado.Schema
         }
         public Table FindTable(string tableName)
         {
-            if (!string.IsNullOrWhiteSpace(DefaultSchema) && !(tableName.Contains(".")))
-            {
-                tableName = DefaultSchema + "." + tableName;
-            }
-            return _lazyTables.Value.Find(tableName);
+            //if (!string.IsNullOrWhiteSpace(DefaultSchema) && !(tableName.Contains(".")))
+            //{
+            //    tableName = DefaultSchema + "." + tableName;
+            //}
+            return _lazyTables.Value.Find(tableName, DefaultSchema);
         }
 
         public Table FindTable(ObjectName tableName)

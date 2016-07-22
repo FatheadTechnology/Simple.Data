@@ -8,9 +8,7 @@ namespace Simple.Data.Ado.Schema
 {
     class TableCollection : Collection<Table>
     {
-        public TableCollection()
-        {
-        }
+        public TableCollection() { }
 
         public TableCollection(IEnumerable<Table> tables)
             : base(tables.ToList())
@@ -22,21 +20,47 @@ namespace Simple.Data.Ado.Schema
         /// This method will try an exact match first, then a case-insensitve search, then a pluralized or singular version.
         /// </summary>
         /// <param name="tableName">Name of the table.</param>
+        /// <param name="schemaName">A schema to look for the table.</param>
+        /// <exception cref="UnresolvableObjectException"></exception>
         /// <returns>A <see cref="Table"/> if a match is found; otherwise, <c>null</c>.</returns>
-        public Table Find(string tableName)
+        public Table Find(string tableName, string schemaName = null)
         {
+            Table table = null;
+
+            //Check the given schema (if one is embedded in the tableName)
             if (tableName.Contains('.'))
             {
                 var schemaDotTable = tableName.Split('.');
-                return Find(schemaDotTable[schemaDotTable.Length - 1], schemaDotTable[0]);
+
+                table = find(schemaDotTable[schemaDotTable.Length - 1], schemaDotTable[0]);
             }
-            var table = FindTableWithName(tableName.Homogenize())
-                   ?? FindTableWithPluralName(tableName.Homogenize())
-                   ?? FindTableWithSingularName(tableName.Homogenize());
+
+            //Check the schema passed in
+            if (table == null && schemaName != null)
+            {
+                if (tableName.Contains('.'))
+                {
+                    var schemaDotTable = tableName.Split('.');
+                    table = find(schemaDotTable[schemaDotTable.Length - 1], schemaName);
+                }
+                else
+                {
+                    table = find(tableName, schemaName);
+                }
+            }
+
+            //Check the given table name
+            if (table == null)
+            {
+                table = FindTableWithName(tableName.Homogenize())
+                        ?? FindTableWithPluralName(tableName.Homogenize())
+                        ?? FindTableWithSingularName(tableName.Homogenize());
+            }
 
             if (table == null)
             {
-                throw new UnresolvableObjectException(tableName, string.Format("Table '{0}' not found, or insufficient permissions.", tableName));
+                throw new UnresolvableObjectException(tableName,
+                    $"Table '{tableName}' {(schemaName != null? ", Schema " + schemaName : string.Empty)} not found, or insufficient permissions.");
             }
 
             return table;
@@ -49,26 +73,27 @@ namespace Simple.Data.Ado.Schema
         /// <param name="tableName">Name of the table.</param>
         /// <param name="schemaName"></param>
         /// <returns>A <see cref="Table"/> if a match is found; otherwise, <c>null</c>.</returns>
-        public Table Find(string tableName, string schemaName)
+        private Table find(string tableName, string schemaName = null)
         {
-            var table = FindTableWithName(tableName.Homogenize(), schemaName.Homogenize())
-                   ?? FindTableWithPluralName(tableName.Homogenize(), schemaName.Homogenize())
-                   ?? FindTableWithSingularName(tableName.Homogenize(), schemaName.Homogenize());
-
-            if (table == null)
+            Table table;
+            if (schemaName != null)
             {
-                // Try without schemaName, which might not be schemaName
+                table = FindTableWithName(tableName.Homogenize(), schemaName.Homogenize())
+                            ?? FindTableWithPluralName(tableName.Homogenize(), schemaName.Homogenize())
+                            ?? FindTableWithSingularName(tableName.Homogenize(), schemaName.Homogenize());
+            }
+            else
+            {
                 table = FindTableWithName(tableName.Homogenize())
                         ?? FindTableWithPluralName(tableName.Homogenize())
                         ?? FindTableWithSingularName(tableName.Homogenize());
-
             }
 
-            if (table == null)
-            {
-                string fullTableName = schemaName + '.' + tableName;
-                throw new UnresolvableObjectException(fullTableName, string.Format("Table '{0}' not found, or insufficient permissions.", fullTableName));
-            }
+            //if (table == null)
+            //{
+            //    string fullTableName = schemaName + '.' + tableName;
+            //    throw new UnresolvableObjectException(fullTableName, string.Format("Table '{0}' not found, or insufficient permissions.", fullTableName));
+            //}
 
             return table;
         }
@@ -85,16 +110,15 @@ namespace Simple.Data.Ado.Schema
 
         private Table FindTableWithName(string tableName, string schemaName)
         {
-            return this
-                .Where(t => t.HomogenizedName.Equals(tableName) && (t.Schema == null || t.Schema.Homogenize().Equals(schemaName)))
-                .SingleOrDefault();
+            var tables = this
+                .Where(t => t.HomogenizedName.Equals(tableName) && (t.Schema == null || t.Schema.Homogenize().Equals(schemaName)));
+            return tables.Count() == 1 ? tables.Single() : null;
         }
 
         private Table FindTableWithName(string tableName)
         {
-            return this
-                .Where(t => t.HomogenizedName.Equals(tableName))
-                .SingleOrDefault();
+            var tables = this.Where(t => t.HomogenizedName.Equals(tableName));
+            return tables.Count() == 1 ? tables.Single() : null;
         }
 
         private Table FindTableWithPluralName(string tableName)
