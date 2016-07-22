@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 
 namespace Simple.Data.Ado.Schema
@@ -10,8 +9,6 @@ namespace Simple.Data.Ado.Schema
     {
         private static readonly ConcurrentDictionary<string, DatabaseSchema> Instances = new ConcurrentDictionary<string, DatabaseSchema>();
 
-        private readonly ProviderHelper _providerHelper;
-        private readonly ISchemaProvider _schemaProvider;
         private readonly Lazy<TableCollection> _lazyTables;
         private readonly Lazy<ProcedureCollection> _lazyProcedures;
         private readonly Lazy<Operators> _operators;
@@ -22,30 +19,18 @@ namespace Simple.Data.Ado.Schema
             _lazyTables = new Lazy<TableCollection>(CreateTableCollection);
             _lazyProcedures = new Lazy<ProcedureCollection>(CreateProcedureCollection);
             _operators = new Lazy<Operators>(CreateOperators);
-            _schemaProvider = schemaProvider;
-            _providerHelper = providerHelper;
+            SchemaProvider = schemaProvider;
+            ProviderHelper = providerHelper;
             _defaultSchema = defaultSchema;
         }
 
-        public ProviderHelper ProviderHelper
-        {
-            get { return _providerHelper; }
-        }
+        public ProviderHelper ProviderHelper { get; }
 
-        public ISchemaProvider SchemaProvider
-        {
-            get { return _schemaProvider; }
-        }
+        public ISchemaProvider SchemaProvider { get; }
 
-        public bool IsAvailable
-        {
-            get { return _schemaProvider != null; }
-        }
+        public bool IsAvailable => SchemaProvider != null;
 
-        public IEnumerable<Table> Tables
-        {
-            get { return _lazyTables.Value.AsEnumerable(); }
-        }
+        public IEnumerable<Table> Tables => _lazyTables.Value.AsEnumerable();
 
         public bool IsTable(string name)
         {
@@ -61,11 +46,10 @@ namespace Simple.Data.Ado.Schema
         }
         public Table FindTable(string tableName)
         {
-            //if (!string.IsNullOrWhiteSpace(DefaultSchema) && !(tableName.Contains(".")))
-            //{
-            //    tableName = DefaultSchema + "." + tableName;
-            //}
-            return _lazyTables.Value.Find(tableName, DefaultSchema);
+            if (!tableName.Contains(".")) return _lazyTables.Value.Find(tableName, DefaultSchema);
+
+            var schemaDotTable = tableName.Split('.');
+            return _lazyTables.Value.Find(schemaDotTable[schemaDotTable.Length - 1], schemaDotTable[0], DefaultSchema);
         }
 
         public Table FindTable(ObjectName tableName)
@@ -91,37 +75,34 @@ namespace Simple.Data.Ado.Schema
             return _lazyProcedures.Value.Find(procedureName);
         }
 
-        private string DefaultSchema
-        {
-            get { return _defaultSchema ?? (_defaultSchema = _schemaProvider.GetDefaultSchema() ?? string.Empty); }
-        }
+        private string DefaultSchema => _defaultSchema ?? (_defaultSchema = SchemaProvider.GetDefaultSchema() ?? string.Empty);
 
         private TableCollection CreateTableCollection()
         {
-            return new TableCollection(_schemaProvider.GetTables()
+            return new TableCollection(SchemaProvider.GetTables()
                 .Select(table => new Table(table.ActualName, table.Schema, table.Type, this)));
         }
 
         private ProcedureCollection CreateProcedureCollection()
         {
-            return new ProcedureCollection(_schemaProvider.GetStoredProcedures()
+            return new ProcedureCollection(SchemaProvider.GetStoredProcedures()
                                                      .Select(
                                                          proc =>
                                                          new Procedure(proc.Name, proc.SpecificName, proc.Schema,
-                                                                             this)), _schemaProvider.GetDefaultSchema());
+                                                                             this)), SchemaProvider.GetDefaultSchema());
         }
 
         public string QuoteObjectName(string unquotedName)
         {
-            return _schemaProvider.QuoteObjectName(unquotedName);
+            return SchemaProvider.QuoteObjectName(unquotedName);
         }
 
         public string QuoteObjectName(ObjectName unquotedName)
         {
             if (!string.IsNullOrWhiteSpace(unquotedName.Schema))
-                return _schemaProvider.QuoteObjectName(unquotedName.Schema) + '.' + _schemaProvider.QuoteObjectName(unquotedName.Name);
+                return SchemaProvider.QuoteObjectName(unquotedName.Schema) + '.' + SchemaProvider.QuoteObjectName(unquotedName.Name);
             else
-                return _schemaProvider.QuoteObjectName(unquotedName.Name);
+                return SchemaProvider.QuoteObjectName(unquotedName.Name);
         }
 
         public static DatabaseSchema Get(IConnectionProvider connectionProvider, ProviderHelper providerHelper)
@@ -139,12 +120,12 @@ namespace Simple.Data.Ado.Schema
             Instances.Clear();
         }
 
-        public ObjectName BuildObjectName(String text)
+        public ObjectName BuildObjectName(string text)
         {
-            if (text == null) throw new ArgumentNullException("text");
-            if (!text.Contains('.')) return new ObjectName(this.DefaultSchema, text);
+            if (text == null) throw new ArgumentNullException(nameof(text));
+            if (!text.Contains('.')) return new ObjectName(DefaultSchema, text);
             var schemaDotTable = text.Split('.');
-            if (schemaDotTable.Length != 2) throw new InvalidOperationException(string.Format("Could not parse table name '{0}'.", text));
+            if (schemaDotTable.Length != 2) throw new InvalidOperationException($"Could not parse table name '{text}'.");
             return new ObjectName(schemaDotTable[0], schemaDotTable[1]);
         }
 
@@ -162,14 +143,11 @@ namespace Simple.Data.Ado.Schema
             return _lazyProcedures.Value.IsProcedure(procedureName);
         }
 
-        public Operators Operators
-        {
-            get { return _operators.Value; }
-        }
+        public Operators Operators => _operators.Value;
 
         private Operators CreateOperators()
         {
-            return ProviderHelper.GetCustomProvider<Operators>(_schemaProvider) ?? new Operators();
+            return ProviderHelper.GetCustomProvider<Operators>(SchemaProvider) ?? new Operators();
         }
     }
 
